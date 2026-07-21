@@ -2,7 +2,13 @@
 
 ## Dataset yang Digunakan
 
-**Sumber:** [Retail Sales Dataset Penjualan](https://www.kaggle.com/datasets/mutiaraagustin/retail-sales-dataset-penjualan) — Kaggle
+**Sumber:** [Anonymous Transactional Dataset](https://data.mendeley.com/datasets/kcgf45y24m/2) — Mendeley Data
+
+Dataset transaksi nyata dari UMKM Food & Beverage Indonesia dengan multi-outlet (Jan–Sep 2025).
+
+File yang tersedia:
+- `Transactions.csv` — 53.820 transaksi
+- `Products.csv` — 96 produk
 
 Simpan file di: `data/raw/`
 
