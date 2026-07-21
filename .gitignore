@@ -19,12 +19,13 @@ venv/
 env/
 .venv/
 
-# Data (jangan commit raw data)
-data/raw/
+# Data (jangan commit raw data besar, tapi sample boleh)
+data/raw/Transactions.csv
+data/raw/Products.csv
 data/processed/
 
-# Models (besar, simpan di cloud storage)
-models/*.pkl
+# Models (commit model utama untuk demo)
+# models/*.pkl
 
 # Jupyter
 .ipynb_checkpoints/
