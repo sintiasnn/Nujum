@@ -85,9 +85,9 @@ Nujum/
 
 ## 📦 Dataset
 
-Menggunakan [Anonymous Transactional Dataset](https://data.mendeley.com/datasets/kcgf45y24m/2) — data transaksi nyata dari UMKM Food & Beverage Indonesia yang beroperasi di beberapa outlet (Januari–September 2025).
+Menggunakan [Anonymous Transactional Dataset](https://data.mendeley.com/datasets/kcgf45y24m/2) — data transaksi nyata dari **UMKM Kopi & F&B Indonesia** yang beroperasi di beberapa outlet (Januari–September 2025).
 
-Dataset ini dipublikasikan di Mendeley Data dengan lisensi CC BY 4.0.
+Dataset mencakup 53.820 transaksi dari sistem Point-of-Sale (POS) dengan 96 produk kopi, minuman, dan makanan. Dataset dipublikasikan di Mendeley Data dengan lisensi CC BY 4.0.
 
 ---
 

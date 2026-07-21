@@ -4,11 +4,11 @@
 
 **Sumber:** [Anonymous Transactional Dataset](https://data.mendeley.com/datasets/kcgf45y24m/2) — Mendeley Data
 
-Dataset transaksi nyata dari UMKM Food & Beverage Indonesia dengan multi-outlet (Jan–Sep 2025).
+Dataset transaksi nyata dari **UMKM Kopi & F&B Indonesia** dengan multi-outlet (Jan–Sep 2025).
 
 File yang tersedia:
 - `Transactions.csv` — 53.820 transaksi
-- `Products.csv` — 96 produk
+- `Products.csv` — 96 produk kopi, minuman, dan makanan
 
 Simpan file di: `data/raw/`
 
