@@ -85,7 +85,9 @@ Nujum/
 
 ## 📦 Dataset
 
-Menggunakan [Retail Sales Dataset Penjualan](https://www.kaggle.com/datasets/mutiaraagustin/retail-sales-dataset-penjualan) dari Kaggle sebagai data simulasi UMKM retail Indonesia.
+Menggunakan [Anonymous Transactional Dataset](https://data.mendeley.com/datasets/kcgf45y24m/2) — data transaksi nyata dari UMKM Food & Beverage Indonesia yang beroperasi di beberapa outlet (Januari–September 2025).
+
+Dataset ini dipublikasikan di Mendeley Data dengan lisensi CC BY 4.0.
 
 ---
 
