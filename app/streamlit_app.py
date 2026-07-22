@@ -91,40 +91,150 @@ st.markdown("""
 
 # ── Helper Functions ────────────────────────────────────────────────────────────
 
-def get_gemini_insight(recommendation: dict, product_name: str, periods: int) -> str:
-    """Generate insight narasi dari Gemini AI."""
+# Model Gemini yang dipakai. Bisa dioverride lewat .env (GEMINI_MODEL).
+# 'gemini-flash-latest' selalu menunjuk ke versi flash terbaru yang aktif.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+
+# Persona bersama untuk semua interaksi AI di Nujum.
+NUJUM_PERSONA = (
+    "Kamu adalah Nujum, asisten bisnis ber-AI untuk pelaku UMKM Indonesia "
+    "(toko kelontong, kuliner, fashion). Kamu bicara dalam Bahasa Indonesia yang "
+    "hangat, sederhana, dan membumi — seperti teman yang paham bisnis. "
+    "Hindari istilah teknis, statistik, atau angka desimal yang rumit. "
+    "Jawaban selalu ringkas, konkret, dan bisa langsung dipraktikkan."
+)
+
+
+def gemini_available() -> bool:
+    """Cek apakah GEMINI_API_KEY sudah dikonfigurasi."""
     api_key = os.getenv("GEMINI_API_KEY", "")
-    if not api_key or api_key == "your_gemini_api_key_here":
+    return bool(api_key) and api_key != "your_gemini_api_key_here"
+
+
+def _call_gemini(prompt: str, system_instruction: str = NUJUM_PERSONA) -> str:
+    """
+    Panggil Gemini dengan prompt tertentu. Fungsi terpusat agar semua fitur AI
+    memakai konfigurasi dan penanganan error yang sama.
+
+    Args:
+        prompt: isi permintaan ke model
+        system_instruction: instruksi persona/sistem
+
+    Returns:
+        Teks jawaban model, atau None jika gagal (error dicetak ke log).
+    """
+    if not gemini_available():
         return None
 
     try:
-        client = genai.Client(api_key=api_key)
-
-        prompt = f"""
-Kamu adalah asisten bisnis untuk UMKM Indonesia. Berikan insight singkat dan praktis (3-4 kalimat) 
-dalam Bahasa Indonesia yang mudah dipahami pemilik toko kecil.
-
-Data prediksi penjualan:
-- Produk: {product_name}
-- Periode prediksi: {periods} hari ke depan
-- Total perkiraan terjual: {recommendation['total_predicted_sales']} unit
-- Rata-rata penjualan harian: {recommendation['avg_daily_sales']} unit/hari
-- Penjualan tertinggi diperkirakan pada: {recommendation['peak_date']}
-- Rekomendasi stok yang perlu disiapkan: {recommendation['recommended_stock']} unit
-
-Berikan insight yang:
-1. Menjelaskan tren penjualan dengan bahasa sederhana
-2. Menekankan kapan perlu siapkan stok ekstra
-3. Saran praktis untuk pemilik UMKM
-Jangan gunakan bahasa teknis atau istilah statistik.
-"""
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY", ""))
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model=GEMINI_MODEL,
             contents=prompt,
+            config=types.GenerateContentConfig(system_instruction=system_instruction),
         )
         return response.text
     except Exception as e:
+        # Jangan telan error diam-diam — cetak ke log supaya mudah didiagnosis.
+        print(f"⚠️  Gagal memanggil Gemini ({GEMINI_MODEL}): {type(e).__name__}: {e}")
         return None
+
+
+def _format_recommendation_context(recommendation: dict, product_name: str, periods: int) -> str:
+    """Rangkai data prediksi jadi konteks teks untuk prompt AI."""
+    nama = "semua produk (total toko)" if product_name == "all" else product_name.replace("_", " ").title()
+    return (
+        f"- Produk: {nama}\n"
+        f"- Periode prediksi: {periods} hari ke depan\n"
+        f"- Total perkiraan terjual: {recommendation['total_predicted_sales']} unit\n"
+        f"- Rata-rata penjualan harian: {recommendation['avg_daily_sales']} unit/hari\n"
+        f"- Penjualan tertinggi diperkirakan pada: {recommendation['peak_date']}\n"
+        f"- Perkiraan penjualan tertinggi harian: {recommendation['max_daily_sales']} unit\n"
+        f"- Rekomendasi stok yang perlu disiapkan: {recommendation['recommended_stock']} unit"
+    )
+
+
+def get_gemini_insight(recommendation: dict, product_name: str, periods: int) -> str:
+    """Generate insight narasi ringkas dari data prediksi."""
+    prompt = f"""
+Berikut data prediksi penjualan sebuah UMKM:
+{_format_recommendation_context(recommendation, product_name, periods)}
+
+Tulis insight singkat dan praktis (3-4 kalimat) yang:
+1. Menjelaskan tren penjualan dengan bahasa sederhana
+2. Menekankan kapan perlu siapkan stok ekstra
+3. Memberi satu saran praktis untuk pemilik UMKM
+"""
+    return _call_gemini(prompt)
+
+
+def ask_nujum(question: str, recommendation: dict = None, product_name: str = None, periods: int = None) -> str:
+    """
+    Jawab pertanyaan pemilik UMKM dalam bahasa natural, berdasar data prediksi
+    yang sedang aktif (jika ada).
+
+    Args:
+        question: pertanyaan dari pengguna
+        recommendation: hasil recommend_stock() yang sedang aktif (opsional)
+        product_name: produk yang sedang dianalisis (opsional)
+        periods: periode prediksi aktif (opsional)
+
+    Returns:
+        Jawaban teks dari AI, atau None jika gagal.
+    """
+    if recommendation is not None:
+        konteks = (
+            "Gunakan data prediksi berikut sebagai dasar jawabanmu bila relevan:\n"
+            f"{_format_recommendation_context(recommendation, product_name or 'all', periods or 0)}\n\n"
+        )
+    else:
+        konteks = (
+            "Belum ada data prediksi yang aktif. Jika pertanyaan butuh angka spesifik, "
+            "arahkan pengguna untuk menjalankan prediksi dulu di tab Prediksi & Stok, "
+            "namun tetap beri saran umum yang berguna.\n\n"
+        )
+
+    prompt = (
+        f"{konteks}"
+        f"Pertanyaan pemilik UMKM: \"{question}\"\n\n"
+        "Jawab langsung, ringkas (maksimal 4-5 kalimat), dan actionable."
+    )
+    return _call_gemini(prompt)
+
+
+def generate_promo_content(product_name: str, recommendation: dict, channel: str, tone: str) -> str:
+    """
+    Buat konten promosi siap pakai untuk kanal digital UMKM.
+
+    Args:
+        product_name: nama produk
+        recommendation: data prediksi aktif (untuk konteks stok/tren)
+        channel: kanal target (WhatsApp, Instagram, dll)
+        tone: nada bahasa (santai, profesional, dll)
+
+    Returns:
+        Teks konten promosi, atau None jika gagal.
+    """
+    nama = "produk andalan toko" if product_name == "all" else product_name.replace("_", " ").title()
+    konteks = ""
+    if recommendation is not None:
+        konteks = (
+            f"Konteks data: rata-rata terjual {recommendation['avg_daily_sales']} unit/hari, "
+            f"perkiraan ramai sekitar {recommendation['peak_date']}.\n"
+        )
+
+    prompt = (
+        f"Buatkan konten promosi untuk {channel} dengan nada {tone}, "
+        f"mempromosikan '{nama}' dari sebuah UMKM Indonesia.\n"
+        f"{konteks}"
+        "Ketentuan:\n"
+        "- Tulis dalam Bahasa Indonesia yang menarik dan mengajak\n"
+        "- Sertakan 1 kalimat pembuka yang menggugah, deskripsi singkat, dan ajakan (call-to-action)\n"
+        "- Tambahkan 3-5 hashtag relevan di akhir\n"
+        "- Gunakan emoji secukupnya agar terasa hidup, jangan berlebihan\n"
+        "- Panjang ideal 3-5 baris"
+    )
+    return _call_gemini(prompt)
 
 
 def plot_forecast(history_df: pd.DataFrame, forecast_df: pd.DataFrame, product_name: str) -> go.Figure:
@@ -244,7 +354,24 @@ with st.sidebar:
 st.markdown('<p class="main-title">Nujum</p>', unsafe_allow_html=True)
 st.markdown('<p class="tagline">Sistem Prediksi Penjualan dan Rekomendasi Stok untuk UMKM Indonesia</p>', unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs(["Upload & Training Model", "Prediksi & Rekomendasi Stok", "Analisis & Perbandingan"])
+# ── Banner Mode Coba Langsung ────────────────────────────────────────────────────
+# Jika sudah ada model siap pakai, ajak pengunjung langsung mencoba tanpa upload data.
+_demo_models = get_available_models()
+if _demo_models:
+    _n_produk = len([m for m in _demo_models if m != "all"])
+    st.success(
+        f"**Coba langsung tanpa perlu upload data!** "
+        f"Data contoh dari UMKM kopi & F&B Indonesia sudah dimuat, dengan **{len(_demo_models)} model siap pakai** "
+        f"(total toko + {_n_produk} produk). "
+        f"Buka tab **Prediksi & Rekomendasi Stok** untuk melihat hasilnya sekarang."
+    )
+
+tab1, tab2, tab3, tab4 = st.tabs([
+    "Upload & Training Model",
+    "Prediksi & Rekomendasi Stok",
+    "Analisis & Perbandingan",
+    "Asisten AI",
+])
 
 
 # ── TAB 1: UPLOAD & TRAINING ────────────────────────────────────────────────────
@@ -525,3 +652,158 @@ with tab3:
                 paper_bgcolor="white",
             )
             st.plotly_chart(fig_compare, use_container_width=True)
+
+
+# ── TAB 4: ASISTEN AI ───────────────────────────────────────────────────────────
+
+with tab4:
+    st.markdown("### Asisten AI Nujum")
+    st.markdown(
+        "Tanya apa saja soal penjualan dan stok tokomu, atau minta dibuatkan konten "
+        "promosi siap pakai. Semua dijawab dalam bahasa sehari-hari oleh AI."
+    )
+
+    if not gemini_available():
+        st.warning(
+            "Fitur AI belum aktif. Tambahkan **GEMINI_API_KEY** di file `.env` "
+            "(gratis di https://aistudio.google.com) lalu jalankan ulang aplikasi."
+        )
+    else:
+        # Konteks prediksi aktif (jika pengguna sudah menjalankan prediksi di tab 2)
+        rec_ctx = st.session_state.get("recommendation")
+        prod_ctx = st.session_state.get("selected_product")
+
+        if rec_ctx is not None:
+            prod_label = "Semua Produk" if prod_ctx == "all" else str(prod_ctx).replace("_", " ").title()
+            st.success(
+                f"AI sedang menganalisis data prediksi untuk **{prod_label}** "
+                f"({periods} hari ke depan). Pertanyaanmu akan dijawab berdasar data ini."
+            )
+        else:
+            st.info(
+                "Belum ada prediksi aktif. Jalankan prediksi di tab **Prediksi & Rekomendasi Stok** "
+                "agar jawaban AI lebih spesifik dengan angka tokomu. Kamu tetap bisa bertanya hal umum."
+            )
+
+        # ── Sub-bagian 1: Chat Tanya Nujum ──────────────────────────────────────
+        st.markdown("#### Tanya Nujum")
+
+        # Inisialisasi riwayat chat
+        if "chat_history" not in st.session_state:
+            st.session_state["chat_history"] = []
+
+        # Contoh pertanyaan cepat
+        st.caption("Contoh pertanyaan yang bisa kamu ajukan:")
+        example_questions = [
+            "Produk apa yang harus saya stok lebih banyak?",
+            "Kapan penjualan diperkirakan paling ramai?",
+            "Bagaimana cara mengurangi risiko stok berlebih?",
+        ]
+        ex_cols = st.columns(len(example_questions))
+        clicked_example = None
+        for i, q in enumerate(example_questions):
+            if ex_cols[i].button(q, key=f"ex_q_{i}", use_container_width=True):
+                clicked_example = q
+
+        # Tampilkan riwayat percakapan
+        for role, text in st.session_state["chat_history"]:
+            with st.chat_message(role):
+                st.markdown(text)
+
+        # Input pertanyaan (dari chat box atau tombol contoh)
+        user_question = st.chat_input("Tulis pertanyaanmu di sini...")
+        if clicked_example and not user_question:
+            user_question = clicked_example
+
+        if user_question:
+            st.session_state["chat_history"].append(("user", user_question))
+            with st.chat_message("user"):
+                st.markdown(user_question)
+
+            with st.chat_message("assistant"):
+                with st.spinner("Nujum sedang berpikir..."):
+                    answer = ask_nujum(
+                        user_question,
+                        recommendation=rec_ctx,
+                        product_name=prod_ctx,
+                        periods=periods,
+                    )
+                if answer:
+                    st.markdown(answer)
+                    st.session_state["chat_history"].append(("assistant", answer))
+                else:
+                    err_msg = "Maaf, AI sedang tidak bisa menjawab. Coba lagi sebentar lagi ya."
+                    st.error(err_msg)
+                    st.session_state["chat_history"].append(("assistant", err_msg))
+
+        if st.session_state["chat_history"]:
+            if st.button("Bersihkan Percakapan"):
+                st.session_state["chat_history"] = []
+                st.rerun()
+
+        st.divider()
+
+        # ── Sub-bagian 2: Generator Konten Promosi ──────────────────────────────
+        st.markdown("#### Generator Konten Promosi")
+        st.markdown(
+            "Buat caption promosi siap posting untuk media sosial atau WhatsApp tokomu."
+        )
+
+        available_models = get_available_models()
+        promo_col1, promo_col2, promo_col3 = st.columns(3)
+
+        with promo_col1:
+            if available_models:
+                promo_product = st.selectbox(
+                    "Produk yang dipromosikan",
+                    options=available_models,
+                    format_func=lambda x: "Produk Andalan Toko" if x == "all" else x.replace("_", " ").title(),
+                    key="promo_product",
+                )
+            else:
+                promo_product = "all"
+                st.caption("Belum ada produk dari model. Memakai 'Produk Andalan Toko'.")
+
+        with promo_col2:
+            promo_channel = st.selectbox(
+                "Kanal",
+                options=["Instagram", "WhatsApp", "Facebook", "TikTok"],
+                key="promo_channel",
+            )
+
+        with promo_col3:
+            promo_tone = st.selectbox(
+                "Nada bahasa",
+                options=["Santai & akrab", "Profesional", "Ceria & promosi diskon", "Elegan"],
+                key="promo_tone",
+            )
+
+        if st.button("Buatkan Konten Promosi", type="primary", use_container_width=True):
+            with st.spinner("AI sedang menyusun konten promosi..."):
+                promo = generate_promo_content(
+                    product_name=promo_product,
+                    recommendation=st.session_state.get("recommendation"),
+                    channel=promo_channel,
+                    tone=promo_tone,
+                )
+            if promo:
+                st.session_state["promo_result"] = promo
+            else:
+                st.error("Gagal membuat konten. Coba lagi sebentar lagi ya.")
+
+        if st.session_state.get("promo_result"):
+            st.markdown("##### Hasil Konten Promosi")
+            st.markdown(
+                f"""
+                <div class="insight-box">
+                    {st.session_state["promo_result"].replace(chr(10), "<br>")}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.download_button(
+                "Salin/Download Teks",
+                data=st.session_state["promo_result"],
+                file_name="konten_promosi_nujum.txt",
+                mime="text/plain",
+            )

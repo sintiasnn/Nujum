@@ -33,20 +33,27 @@ Setelah preprocessing, semua DataFrame harus mengikuti format ini:
 
 ## Model: Prophet
 
-- `yearly_seasonality=True`
+- `yearly_seasonality` — **adaptif**: aktif hanya jika rentang data >= ~1.5 tahun (540 hari).
+  Dataset UMKM saat ini < 1 tahun (272 hari), jadi otomatis `False` agar Prophet tidak
+  memaksakan estimasi pola tahunan dari data yang tidak cukup (menghindari overfitting + warning).
 - `weekly_seasonality=True`
 - `daily_seasonality=False`
-- `seasonality_mode="multiplicative"` — cocok untuk data dengan fluktuasi proporsional
+- `seasonality_mode="additive"` — lebih stabil untuk produk bervolume rendah yang banyak
+  hari bernilai 0. (Multiplicative kurang stabil pada data jarang/sparse.)
 - `changepoint_prior_scale=0.05` — konservatif, hindari overfitting
 
 ## Evaluasi Model
 
 Metrik yang digunakan:
-- **MAE** (Mean Absolute Error) — utama, mudah diinterpretasi
-- **RMSE** (Root Mean Squared Error) — sensitif terhadap outlier
-- **MAPE** (Mean Absolute Percentage Error) — dalam persen, target < 20%
+- **MAE** (Mean Absolute Error) — metrik **utama**, mudah diinterpretasi (meleset berapa unit).
+- **RMSE** (Root Mean Squared Error) — sensitif terhadap outlier.
+- **MAPE** (Mean Absolute Percentage Error) — target < 20%, **hanya andal untuk model total toko**.
 
-Test set: 30 hari terakhir dari data historis.
+> ⚠️ Catatan penting: untuk produk bervolume rendah (1–4 unit/hari), MAPE secara matematis
+> selalu tinggi (meleset 2 unit dari basis 2 unit = 100%) walau MAE-nya kecil. Jadi MAPE
+> menyesatkan di level per-produk. **Gunakan MAE untuk per-produk, dan MAPE untuk model total.**
+
+Test set: 30 hari terakhir dari data historis. Hasil evaluasi disimpan ke `models/metrics.json`.
 
 ## Rekomendasi Stok
 

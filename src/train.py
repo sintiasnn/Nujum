@@ -34,15 +34,22 @@ def train_prophet(df: pd.DataFrame) -> Prophet:
     Returns:
         Model Prophet yang sudah di-fit
     """
+    # Prophet butuh ~1 tahun data untuk mengestimasi musiman tahunan dengan andal.
+    # Data UMKM ini < 1 tahun, jadi yearly_seasonality dimatikan otomatis agar tidak overfit.
+    span_days = (df["ds"].max() - df["ds"].min()).days
+    use_yearly = span_days >= 540  # aktif hanya bila data >= ~1.5 tahun
+
+    # 'additive' lebih stabil untuk produk bervolume rendah yang banyak hari bernilai 0
+    # (multiplicative cenderung tidak stabil pada data jarang/sparse).
     model = Prophet(
-        yearly_seasonality=True,
+        yearly_seasonality=use_yearly,
         weekly_seasonality=True,
         daily_seasonality=False,
-        seasonality_mode="multiplicative",
+        seasonality_mode="additive",
         changepoint_prior_scale=0.05,
     )
     model.fit(df[["ds", "y"]])
-    print("✅ Model Prophet berhasil ditraining")
+    print(f"✅ Model Prophet berhasil ditraining (yearly_seasonality={use_yearly}, mode=additive)")
     return model
 
 

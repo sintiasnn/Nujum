@@ -1,0 +1,63 @@
+{
+  "trained_at": "2026-07-22T22:18:32",
+  "model": "prophet",
+  "test_days": 30,
+  "total_models": 11,
+  "metrics": {
+    "all": {
+      "MAE": 17.04,
+      "RMSE": 20.29,
+      "MAPE": 8.28
+    },
+    "americano_hot_arabica": {
+      "MAE": 1.79,
+      "RMSE": 2.26,
+      "MAPE": 55.19
+    },
+    "black_houseblend": {
+      "MAE": 1.34,
+      "RMSE": 1.64,
+      "MAPE": 58.78
+    },
+    "butterscotch": {
+      "MAE": 3.2,
+      "RMSE": 3.86,
+      "MAPE": 108.03
+    },
+    "chocolate_gedhe": {
+      "MAE": 1.98,
+      "RMSE": 2.55,
+      "MAPE": 58.01
+    },
+    "chocolate_hot": {
+      "MAE": 1.95,
+      "RMSE": 2.43,
+      "MAPE": 88.72
+    },
+    "chocolate_ice": {
+      "MAE": 2.01,
+      "RMSE": 2.35,
+      "MAPE": 90.22
+    },
+    "friendly_coffee_hot": {
+      "MAE": 1.84,
+      "RMSE": 2.31,
+      "MAPE": 64.63
+    },
+    "friendly_coffee_ice": {
+      "MAE": 1.96,
+      "RMSE": 2.52,
+      "MAPE": 64.48
+    },
+    "hazelnut_latte_gedhe": {
+      "MAE": 1.42,
+      "RMSE": 1.73,
+      "MAPE": 69.05
+    },
+    "jasmine_ice": {
+      "MAE": 2.19,
+      "RMSE": 2.82,
+      "MAPE": 140.77
+    }
+  }
+}
